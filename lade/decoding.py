@@ -706,7 +706,7 @@ def greedy_search_chat(
 
     # keep track of which sequences are already finished
     unfinished_sequences = torch.ones(input_ids.shape[0], dtype=torch.long, device=input_ids.device)
-    
+
     assert input_ids.size(0) == 1
     all_old_tokens = input_ids[0].tolist()
     init = self.tokenizer.decode(all_old_tokens, skip_special_tokens=True, \
@@ -806,23 +806,22 @@ def greedy_search_chat(
     if streamer is not None:
         streamer.end()
 
-    if return_dict_in_generate:
-        if self.config.is_encoder_decoder:
-            return GreedySearchEncoderDecoderOutput(
-                sequences=input_ids,
-                scores=scores,
-                encoder_attentions=encoder_attentions,
-                encoder_hidden_states=encoder_hidden_states,
-                decoder_attentions=decoder_attentions,
-                cross_attentions=cross_attentions,
-                decoder_hidden_states=decoder_hidden_states,
-            )
-        else:
-            return GreedySearchDecoderOnlyOutput(
-                sequences=input_ids,
-                scores=scores,
-                attentions=decoder_attentions,
-                hidden_states=decoder_hidden_states,
-            )
-    else:
+    if not return_dict_in_generate:
         return input_ids
+    if self.config.is_encoder_decoder:
+        return GreedySearchEncoderDecoderOutput(
+            sequences=input_ids,
+            scores=scores,
+            encoder_attentions=encoder_attentions,
+            encoder_hidden_states=encoder_hidden_states,
+            decoder_attentions=decoder_attentions,
+            cross_attentions=cross_attentions,
+            decoder_hidden_states=decoder_hidden_states,
+        )
+    else:
+        return GreedySearchDecoderOnlyOutput(
+            sequences=input_ids,
+            scores=scores,
+            attentions=decoder_attentions,
+            hidden_states=decoder_hidden_states,
+        )
