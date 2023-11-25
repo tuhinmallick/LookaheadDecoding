@@ -180,7 +180,7 @@ def LlamaModeljforward(
         position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
     else:
         position_ids = position_ids.view(-1, seq_length).long()
-    
+
     if inputs_embeds is None:
         inputs_embeds = self.embed_tokens(input_ids)
     # embed positions
@@ -190,11 +190,7 @@ def LlamaModeljforward(
         )
         padding_mask = None
     else:
-        if 0 in attention_mask:
-            padding_mask = attention_mask
-        else:
-            padding_mask = None
-
+        padding_mask = attention_mask if 0 in attention_mask else None
     attention_mask = self.j_prepare_decoder_attention_mask(
         attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length, (WINDOWS_SIZE, is_prefill, guess, guess_size, not_seq, continue_all, level_sizes), 
     )
@@ -287,7 +283,7 @@ def jforward_multilevel(
     output_attentions: Optional[bool] = None,
     output_hidden_states: Optional[bool] = None,
     return_dict: Optional[bool] = None,
-    
+
 ) -> Union[Tuple, CausalLMOutputWithPast]:
     r"""
     Args:
@@ -321,7 +317,7 @@ def jforward_multilevel(
     )
     return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-    
+
 
     #assert attention_mask.all().item(), " Mask Must All Be One "
     assert labels is None, " Inference Mode "
@@ -329,23 +325,19 @@ def jforward_multilevel(
     if level is not None:
         assert level == len(past_tokens) + 1
         assert guess_size == level - 1
-    
-    if past_key_values is not None:
-        past_size = past_key_values[0][0].size(2)
-        #assert past_size == attention_mask.size(1) - 1
-    else:
-        past_size = 0
+
+    past_size = past_key_values[0][0].size(2) if past_key_values is not None else 0
     #print("past: ", past_size, )
    # assert past_size == attention_mask.size(1)
 
-    prefill_size = input_ids.size(1) 
+    prefill_size = input_ids.size(1)
     for layer in self.model.layers:
         layer.self_attn.cur_len = prefill_size
-    
-    import time 
+
+    import time
     level_sizes = []
 
-    assert continue_all == False
+    assert not continue_all
     lst_id = position_ids[0][-1].item()
 
     all_past = []
@@ -367,7 +359,7 @@ def jforward_multilevel(
         position_ids = torch.cat((position_ids, torch.tensor(ids_list + guess_ids, device=input_ids.device, dtype=input_ids.dtype).unsqueeze(0)), dim=1)
         attention_mask = torch.cat((attention_mask, torch.ones(1, attn_size + len(guess_tokens), \
                 device=input_ids.device, dtype=input_ids.dtype)), dim=1)
-    
+
     else:
     #print("original size: ", input_ids.size(), position_ids.size(), attention_mask.size())
         input_ids = torch.cat((input_ids, torch.tensor(all_past, device=input_ids.device, dtype=input_ids.dtype).unsqueeze(0)), dim=1)
@@ -376,7 +368,7 @@ def jforward_multilevel(
                 device=input_ids.device, dtype=input_ids.dtype)), dim=1)
         #print("input new: ", input_ids.size(), attention_mask.size(), position_ids.size(), attn_size, past_key_values[0][0].size(2))
     step_len = attention_mask.size(1)
-    
+
     #assert attention_mask.all().item()
     #attention_mask = None 
     #print("setting: is_prefill", past_tokens[1] is None)
@@ -406,8 +398,8 @@ def jforward_multilevel(
         logits = torch.cat(logits, dim=-1)
     else:
         logits = self.lm_head(hidden_states)
-    
-    
+
+
     logits = logits.float()
 
     loss = None
@@ -437,11 +429,7 @@ def jforward_multilevel(
     ret.kvcache_len = prefill_size + past_size
     ret.step_len = step_len
 
-    if guess_tokens is not None:
-        lguess = len(guess_tokens)
-    else:
-        lguess = 0
-    
+    lguess = len(guess_tokens) if guess_tokens is not None else 0
     ret.out_logits = ret.logits[:,prefill_size - 1,:].to(input_ids.device)
     assert fill_level != -1
     if lguess > 0:

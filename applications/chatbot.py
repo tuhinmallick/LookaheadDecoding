@@ -11,9 +11,9 @@ if __name__ == "__main__":
 
     lade.config_lade(LEVEL=5, WINDOW_SIZE=15, GUESS_SET_SIZE=15, DEBUG=1) #A100
     #lade.config_lade(LEVEL=5, WINDOW_SIZE=10, GUESS_SET_SIZE=10, DEBUG=1) #Game GPU like 3090
-    
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--local_rank", type=int, default=0) 
+    parser.add_argument("--local_rank", type=int, default=0)
     parser.add_argument("--model_path", type=str, help="model path", default="meta-llama/Llama-2-7b-chat-hf") #tiiuae/falcon-7b-instruct #"TheBloke/Falcon-180B-Chat-GPTQ" 
     parser.add_argument("--model_type", type=str, default="llama")
     parser.add_argument("--quant", type=str, default="")
@@ -30,12 +30,12 @@ if __name__ == "__main__":
         help="Maximum new tokens to generate per response",
     )
     args = parser.parse_args()
-    
+
     if args.dtype == "float16":
         args.dtype = torch.float16
     elif args.dtype == "bfloat16":
         args.dtype = torch.bfloat16
-    
+
     #if args.use_ds:
     model, tokenizer = get_model(args.model_path, args.quant, args.dtype, args.device, args.cache_dir, args.use_ds, False)
 
@@ -57,11 +57,11 @@ if __name__ == "__main__":
             model_input = input("User: ")
         else:
             model_input = '''Which methods did Socrates employ to challenge the prevailing thoughts of his time?'''
-            print("User: " + model_input)
+            print(f"User: {model_input}")
         if system_prompt is not None and first_time:
             if args.model_type == "llama":  
-                new_inputs = system_prompt + f"{model_input}\n {roles[1]} "
-            new_inputs = "[INST]" + f"{model_input}\n {roles[1]} "
+                new_inputs = f"{system_prompt}{model_input}\n {roles[1]} "
+            new_inputs = f"[INST]{model_input}\n {roles[1]} "
             first_time = False
         else:
             new_inputs = f"{roles[0]}: {model_input}\n {roles[1]}: "
@@ -82,13 +82,13 @@ if __name__ == "__main__":
         os.environ["CHAT"] = "1"
         t0 = time.time()
         greedy_output = model.generate(input_ids=input_ids, **generate_kwargs).tolist()
-        
+
         t1 = time.time()
         os.environ["CHAT"] = "0"
         output = tokenizer.decode(greedy_output[0], skip_special_tokens=False)
 
         user_input = f"{output}\n\n"
-        
+
         if args.debug:
             generated_tokens = len(greedy_output[0]) - input_ids.numel()
             print()
